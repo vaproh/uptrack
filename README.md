@@ -1,6 +1,6 @@
 # uptrack
 
-[![ci](https://github.com/vaproh/uptrack/actions/workflows/ci/badge.svg)](https://github.com/vaproh/uptrack/actions/workflows/ci)
+[![ci](https://github.com/vaproh/uptrack/actions/workflows/ci.yml/badge.svg)](https://github.com/vaproh/uptrack/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/vaproh/uptrack)](https://github.com/vaproh/uptrack/releases)
 [![go](https://img.shields.io/github/go-mod/go-version/vaproh/uptrack)](https://go.dev)
 [![license](https://img.shields.io/github/license/vaproh/uptrack)](LICENSE)
