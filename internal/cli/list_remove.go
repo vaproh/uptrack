@@ -9,6 +9,7 @@ import (
 
 	"github.com/vaproh/uptrack/internal/color"
 	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/install"
 	"github.com/vaproh/uptrack/internal/prompt"
 )
 
@@ -88,9 +89,15 @@ func untrack(c *ctx, name string) error {
 	return nil
 }
 
-// uninstallApp deletes installed files and the symlink, then untracks.
+// uninstallApp deletes installed files, launcher entries and the
+// symlink, then untracks.
 func uninstallApp(c *ctx, name string) error {
+	desktop := c.state.Apps[name].DesktopFiles
 	app, err := dropApp(c, name)
+	if err != nil {
+		return err
+	}
+	err = install.RemoveDesktopFiles(desktop)
 	if err != nil {
 		return err
 	}

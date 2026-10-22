@@ -16,6 +16,7 @@ import (
 
 func newInstall() *cobra.Command {
 	var tag string
+	var noDesktop bool
 	cmd := &cobra.Command{
 		Use:   "install <name>",
 		Short: "Install or upgrade one tracked app",
@@ -25,14 +26,16 @@ func newInstall() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return installApp(c, app, tag)
+			return installApp(c, app, tag, noDesktop)
 		}),
 	}
 	cmd.Flags().StringVar(&tag, "version", "", "install a specific release tag instead of the latest")
+	cmd.Flags().BoolVar(&noDesktop, "no-desktop", false, "skip launcher integration")
 	return cmd
 }
 
 func newSync() *cobra.Command {
+	var noDesktop bool
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Install missing apps and upgrade outdated ones",
@@ -91,7 +94,7 @@ func newSync() *cobra.Command {
 					failed++
 					continue
 				}
-				err = installApp(c, app, j.tag)
+				err = installApp(c, app, j.tag, noDesktop)
 				if err != nil {
 					failed++
 				}
@@ -102,12 +105,13 @@ func newSync() *cobra.Command {
 			return nil
 		}),
 	}
+	cmd.Flags().BoolVar(&noDesktop, "no-desktop", false, "skip launcher integration")
 	return cmd
 }
 
 // installApp resolves the release, confirms, installs and records state.
 // A bare install of a pinned app installs the pin; --version overrides.
-func installApp(c *ctx, app *config.App, tag string) error {
+func installApp(c *ctx, app *config.App, tag string, noDesktop bool) error {
 	if tag == "" && app.Pin != "" {
 		tag = app.Pin
 	}
@@ -143,12 +147,13 @@ func installApp(c *ctx, app *config.App, tag string) error {
 		}
 	}
 	res, err := install.Install(context.Background(), install.Request{
-		App:      *app,
-		Sel:      sel,
-		Tag:      rel.TagName,
-		DestDir:  dest,
-		BinDir:   c.paths.BinDir,
-		Progress: downloadBar(),
+		App:       *app,
+		Sel:       sel,
+		Tag:       rel.TagName,
+		DestDir:   dest,
+		BinDir:    c.paths.BinDir,
+		Progress:  downloadBar(),
+		NoDesktop: noDesktop,
 	})
 	finishBar()
 	if err != nil {
@@ -158,6 +163,7 @@ func installApp(c *ctx, app *config.App, tag string) error {
 	s.InstalledVersion = rel.TagName
 	s.InstalledAsset = sel.Asset.Name
 	s.ExeRel = res.ExeRel
+	s.DesktopFiles = res.DesktopFiles
 	s.Verified = res.Verified
 	s.LatestVersion = rel.TagName
 	c.state.Apps[app.Name] = s
@@ -167,6 +173,9 @@ func installApp(c *ctx, app *config.App, tag string) error {
 	}
 	if !res.Verified {
 		fmt.Printf("%s\n", color.Yellow("unverified: upstream published no digest for this asset"))
+	}
+	if res.DesktopNote != "" {
+		fmt.Printf("%s %s\n", color.Yellow("note:"), res.DesktopNote)
 	}
 	if !install.InPath(c.paths.BinDir) {
 		fmt.Printf("%s %s is not on PATH; add this to your shell config:\n", color.Yellow("warning:"), c.paths.BinDir)

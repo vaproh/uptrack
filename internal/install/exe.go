@@ -138,20 +138,17 @@ func findDebExe(dir, hint string) (string, error) {
 
 func desktops(dir string) ([]string, error) {
 	var out []string
-	for _, appdir := range []string{"usr/share/applications", "opt"} {
-		root := filepath.Join(dir, appdir)
-		err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
-				return nil
-			}
-			if strings.HasSuffix(p, ".desktop") {
-				out = append(out, p)
-			}
+	err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
 			return nil
-		})
-		if err != nil && !os.IsNotExist(err) {
-			return nil, err
 		}
+		if strings.HasSuffix(p, ".desktop") {
+			out = append(out, p)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	sort.Strings(out)
 	return out, nil

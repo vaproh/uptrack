@@ -33,12 +33,17 @@ type Request struct {
 	Client  *http.Client
 	// Progress receives download progress; nil means silent.
 	Progress func(downloaded, total int64)
+	// NoDesktop skips launcher integration for deb/AppImage installs.
+	NoDesktop bool
 }
 
 // Result reports what was installed.
 type Result struct {
-	ExeRel   string // executable path relative to DestDir
-	Verified bool   // checksum matched a published digest
+	ExeRel       string   // executable path relative to DestDir
+	Verified     bool     // checksum matched a published digest
+	VerifiedBy   string   // what proved it: digest, checksum file, or ""
+	DesktopFiles []string // installed launcher files
+	DesktopNote  string   // non-fatal desktop integration warning
 }
 
 // Install runs the full pipeline: download, verify, extract, place.
@@ -82,11 +87,26 @@ func Install(ctx context.Context, req Request) (Result, error) {
 	}
 	defer os.RemoveAll(staged)
 
+	// Desktop integration reads the staged tree, so it runs before
+	// the swap renames staging away. exeAbs is the final path.
+	exeAbs := filepath.Join(req.DestDir, exeRel)
+	res := Result{ExeRel: exeRel, Verified: verified}
+	if !req.NoDesktop {
+		kind := effectiveKind(req)
+		if kind == asset.KindDeb || kind == asset.KindAppImage {
+			files, note, err := installDesktopFiles(staged, exeAbs, kind, req.App.Name)
+			if err != nil {
+				return Result{}, err
+			}
+			res.DesktopFiles = files
+			res.DesktopNote = note
+		}
+	}
+
 	err = swapIn(req.DestDir, staged)
 	if err != nil {
 		return Result{}, err
 	}
-	exeAbs := filepath.Join(req.DestDir, exeRel)
 	err = os.Chmod(exeAbs, 0o755)
 	if err != nil {
 		return Result{}, fmt.Errorf("chmod %s: %w", exeAbs, err)
@@ -96,16 +116,21 @@ func Install(ctx context.Context, req Request) (Result, error) {
 		return Result{}, err
 	}
 	warnMissingLibs(exeAbs)
-	return Result{ExeRel: exeRel, Verified: verified}, nil
+	return res, nil
+}
+
+// effectiveKind applies the install.type override, if any.
+func effectiveKind(req Request) asset.Kind {
+	if req.App.Install != nil && req.App.Install.Type != "" {
+		return asset.Kind(req.App.Install.Type)
+	}
+	return req.Sel.Kind
 }
 
 // stage extracts the download into a fresh temp dir and locates the
 // executable. It returns the staging dir and the exe's relative path.
 func stage(req Request, file string) (string, string, error) {
-	kind := req.Sel.Kind
-	if req.App.Install != nil && req.App.Install.Type != "" {
-		kind = asset.Kind(req.App.Install.Type)
-	}
+	kind := effectiveKind(req)
 	parent := filepath.Dir(req.DestDir)
 	err := os.MkdirAll(parent, 0o755)
 	if err != nil {
