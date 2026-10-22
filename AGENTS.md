@@ -49,3 +49,12 @@ All four must pass before any commit.
 - No network in tests. Ever.
 - Product decisions live in `PRD.md`. If a change contradicts it, say
   so instead of silently drifting.
+
+## Releases
+
+Cut with `git tag vX.Y.Z && git push origin vX.Y.Z`. The release
+workflow gates on gofmt/vet/test, builds linux x86_64 + aarch64,
+generates the changelog from conventional commits via git-cliff
+(`cliff.toml`), and publishes binaries + `CHANGELOG.md` +
+`sha256sums.txt`. Write commit messages accordingly: `feat:`, `fix:`,
+`docs:` group the notes; anything else lands under Miscellaneous.

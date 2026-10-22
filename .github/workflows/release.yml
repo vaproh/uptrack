@@ -1,5 +1,9 @@
 name: release
 
+# Cut a release: git tag vX.Y.Z && git push origin vX.Y.Z
+# This builds both binaries, generates the changelog from conventional
+# commits, and publishes the GitHub release with docs attached.
+
 on:
   push:
     tags: ["v*"]
@@ -8,7 +12,52 @@ permissions:
   contents: write
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: format
+        run: test -z "$(gofmt -l .)"
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test ./...
+
+  changelog:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: full changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --strip all
+        env:
+          OUTPUT: CHANGELOG.md
+      - name: this release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip all
+        env:
+          OUTPUT: CHANGES.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: |
+            CHANGELOG.md
+            CHANGES.md
+
   build:
+    needs: check
     strategy:
       matrix:
         include:
@@ -22,8 +71,27 @@ jobs:
           go-version: stable
       - name: build
         run: GOOS=linux GOARCH=${{ matrix.goarch }} go build -o uptrack-linux-${{ matrix.suffix }} ./cmd/uptrack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.suffix }}
+          path: uptrack-linux-${{ matrix.suffix }}
+
+  publish:
+    needs: [build, changelog]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: checksums
+        run: cd dist && sha256sum uptrack-linux-* CHANGELOG.md > sha256sums.txt
       - name: release
         uses: softprops/action-gh-release@v2
         with:
-          files: uptrack-linux-${{ matrix.suffix }}
-          generate_release_notes: true
+          files: |
+            dist/uptrack-linux-x86_64
+            dist/uptrack-linux-aarch64
+            dist/CHANGELOG.md
+            dist/sha256sums.txt
+          body_path: dist/CHANGES.md

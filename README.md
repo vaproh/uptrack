@@ -1,114 +1,118 @@
 # uptrack
 
-![ci](https://github.com/vaproh/uptrack/actions/workflows/ci/badge.svg)
+[![ci](https://github.com/vaproh/uptrack/actions/workflows/ci/badge.svg)](https://github.com/vaproh/uptrack/actions/workflows/ci)
+[![release](https://img.shields.io/github/v/release/vaproh/uptrack)](https://github.com/vaproh/uptrack/releases)
+[![go](https://img.shields.io/github/go-mod/go-version/vaproh/uptrack)](https://go.dev)
+[![license](https://img.shields.io/github/license/vaproh/uptrack)](LICENSE)
+![platform](https://img.shields.io/badge/platform-linux-lightgrey)
 
-Track and install standalone Linux apps from GitHub releases. You add a
-repo, uptrack picks the right file for your system, verifies it, and
-installs it under `~/.local`. Copy `config.yaml` to a new machine, run
-`uptrack sync`, and everything is there.
+Track and install standalone Linux apps from GitHub releases. No root,
+no package database, no lock-in: one YAML file lists your apps, and any
+machine with that file gets the same software.
+
+```bash
+$ uptrack add anomalyco/opencode
+tracking opencode  anomalyco/opencode
+  latest v1.19.3, asset opencode-linux-x64.tar.gz
+run uptrack install opencode to install it
+
+$ uptrack install opencode
+install opencode v1.19.3 (60.7 MB) to ~/.local/opt/opencode? [y/N] y
+installed opencode v1.19.3 → ~/.local/opt/opencode
+```
+
+## Why
+
+Some apps live outside every distro repo: upstream GitHub releases,
+AppImages, standalone tarballs. Tracking them by hand means revisiting
+release pages. uptrack does the boring part — watch the repo, pick the
+right file for your system, verify it, and put it on your `PATH`.
+
+## Features
+
+- **Automatic asset selection** — OS, arch and libc filtering with
+  format preference. It asks on ambiguity instead of guessing.
+- **Verified downloads** — sha256 checked against the digest GitHub
+  publishes; missing digests are labeled, never silently trusted.
+- **Safe installs** — atomic swap keeps the old version live until the
+  new one is staged; archives are extracted with traversal protection.
+- **`.deb` without root** — extracts the payload into `~/.local`,
+  never touches dpkg or maintainer scripts.
+- **Dotfiles-friendly** — three required fields per app, machine state
+  kept separate, `uptrack sync` restores everything on a new box.
 
 ## Install
 
 Prebuilt Linux binaries (x86_64, aarch64) are on the
 [releases page](https://github.com/vaproh/uptrack/releases), or build
-from source:
+from source (Go 1.27+):
 
 ```bash
 go install github.com/vaproh/uptrack/cmd/uptrack@latest
-# or
-git clone https://github.com/vaproh/uptrack && cd uptrack
-go build -o ~/.local/bin/uptrack ./cmd/uptrack
 ```
 
-Needs Go 1.27+. Two dependencies: `cobra`, `gopkg.in/yaml.v3`.
-Extracting `.tar.xz` and `.tar.zst` shells out to the system `xz` and
-`zstd` binaries.
+`.tar.xz` and `.tar.zst` extraction shells out to the system `xz` and
+`zstd` binaries. Everything else is stdlib; dependencies are `cobra`
+and `yaml.v3` only.
 
 ## Usage
 
 ```bash
-uptrack add anomalyco/opencode        # track a repo
-uptrack add https://github.com/owner/repo --channel prerelease
-uptrack list                            # tracked apps
-uptrack check                           # refresh release info
-uptrack outdated                        # only apps needing attention
-uptrack info opencode                   # release notes + asset reasoning
-uptrack log opencode                    # release history
-uptrack install opencode                # install or upgrade
-uptrack install opencode --version v1.19.2
-uptrack sync                            # install missing + upgrade outdated
-uptrack remove opencode                 # stop tracking (files stay)
-uptrack remove opencode --purge         # also delete files
+uptrack add <owner/repo|url> [--channel stable|prerelease|any]
+uptrack list                       # tracked apps + versions
+uptrack check                      # refresh release info
+uptrack outdated                   # apps needing attention
+uptrack info <name>                # release notes + why this asset
+uptrack log <name>                 # release history
+uptrack install <name> [--version <tag>]
+uptrack sync                       # install missing + upgrade outdated
+uptrack remove <name> [--purge]    # stop tracking, optionally delete files
 ```
 
-Installs and upgrades ask for confirmation; `-y` / `--yes` skips it.
-`--no-color` disables styling; `NO_COLOR` is honored too.
+Installs and upgrades confirm unless `-y`. Colors follow the terminal;
+`NO_COLOR` and `--no-color` disable them.
 
 ## Config
 
-`~/.config/uptrack/config.yaml` (XDG-aware). Only three fields are
-required; the rest is inferred:
+`~/.config/uptrack/config.yaml`. Three fields required, rest inferred:
 
 ```yaml
 apps:
-  - name: opencode          # required
-    repo: anomalyco/opencode # required
-    channel: stable          # required: stable | prerelease | any
-    asset:                   # optional override
-      match: "opencode-linux-x64*.tar.gz"
-      exclude: ["*musl*", "*baseline*"]
-    install:                 # optional override
-      type: archive          # binary | archive | appimage | deb
-      dest: ~/.local/opt/opencode
-      exe: opencode
+  - name: opencode
+    repo: anomalyco/opencode
+    channel: stable
 ```
 
-Machine-local state (installed versions, latest seen) lives in
-`~/.local/state/uptrack/state.json`, so the YAML stays clean for
-dotfiles. Apps install to `~/.local/opt/<name>/` with a symlink at
-`~/.local/bin/<name>`.
+Full schema, channels and environment variables: [docs/config.md](docs/config.md).
 
-## How asset selection works
+## Docs
 
-Selection re-runs on every release, since upstream renames assets
-between versions:
-
-1. Keep installable formats (raw binary, tar.gz/bz2/xz/zst, zip,
-   AppImage, deb). Metadata files (`.yml`, `.json`, checksums,
-   blockmaps) are dropped first.
-2. Reject other OSes (darwin, windows, freebsd) and other arches.
-3. Reject musl builds on glibc hosts and glibc builds on musl hosts.
-4. Deprioritize `baseline` builds and GUI builds (`desktop`, `gui`).
-5. Prefer raw binary over archive over AppImage over deb.
-
-One winner installs silently. A tie asks on a terminal and errors
-otherwise; it never guesses. `asset.match` / `asset.exclude` override
-the automatic pick, and a stored rule that matches nothing falls back
-to automatic selection with a warning.
-
-## Safety
-
-- Downloads go to a temp file with a size check against the release
-  metadata, then sha256 is verified against the digest GitHub
-  publishes. No digest means the install is labeled **unverified**,
-  never silently trusted. A mismatch aborts and deletes the file.
-- Extraction rejects absolute paths and `..` escapes; symlinks
-  pointing outside the install dir are dropped.
-- The old install stays in place until the new tree is staged, then a
-  rename swap replaces it.
-- `.deb` files are extracted, never installed as root: no maintainer
-  scripts, no dpkg database, no dependency resolution. `ldd` warns
-  about missing shared libraries after install.
-- No rollback command: `install --version <tag>` reinstalls any older
-  release, which covers the same need with no extra machinery.
+- [config](docs/config.md) — files, schema, channels, environment, dotfiles workflow
+- [selection](docs/selection.md) — how the right asset is picked, with a worked example
+- [install](docs/install.md) — pipeline, formats, `.deb` semantics, archive safety
+- [PRD](PRD.md) — product decisions and non-goals
+- [AGENTS](AGENTS.md) — conventions for automated contributors
 
 ## Limits
 
-- GitHub only (GitLab and generic URLs are future work).
-- `.rpm` is not supported.
-- AppImages need FUSE on the host.
-- Asset naming is a convention, not a standard. When auto-selection
-  gets it wrong, pin it with `asset.match`.
-- Unauthenticated GitHub API is 60 requests/hour. Set `GITHUB_TOKEN`
-  to raise it. `UPTRACK_GITHUB_API` overrides the API root (GitHub
-  Enterprise).
+- GitHub releases only. No rpm support. AppImages need FUSE.
+- `.deb` dependencies are not resolved — the post-install `ldd` check
+  names missing libraries for your system package manager.
+- Unauthenticated API: 60 req/hour; set `GITHUB_TOKEN` to raise it.
+
+## Development
+
+```bash
+go build ./...   # build
+go vet ./...     # vet
+gofmt -l .       # must print nothing
+go test ./...    # hermetic suite, no network
+```
+
+Cut a release with `git tag vX.Y.Z && git push origin vX.Y.Z` — CI
+gates on checks, then builds both binaries, generates the changelog
+from conventional commits, and publishes the GitHub release.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
