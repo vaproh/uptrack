@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"uptrack/internal/asset"
-	"uptrack/internal/config"
-	"uptrack/internal/gh"
+	"github.com/vaproh/uptrack/internal/asset"
+	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/gh"
 )
 
 // Request describes one installation.

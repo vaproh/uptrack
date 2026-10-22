@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"uptrack/internal/cli"
+	"github.com/vaproh/uptrack/internal/cli"
 )
 
 func main() {

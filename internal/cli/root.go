@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"uptrack/internal/color"
-	"uptrack/internal/config"
-	"uptrack/internal/platform"
+	"github.com/vaproh/uptrack/internal/color"
+	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/platform"
 )
 
 // hostOf returns the current host for asset selection.

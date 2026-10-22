@@ -1,4 +1,4 @@
-module uptrack
+module github.com/vaproh/uptrack
 
 go 1.27.1
 

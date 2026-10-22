@@ -7,11 +7,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"uptrack/internal/asset"
-	"uptrack/internal/color"
-	"uptrack/internal/config"
-	"uptrack/internal/gh"
-	"uptrack/internal/prompt"
+	"github.com/vaproh/uptrack/internal/asset"
+	"github.com/vaproh/uptrack/internal/color"
+	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/gh"
+	"github.com/vaproh/uptrack/internal/prompt"
 )
 
 func newAdd() *cobra.Command {

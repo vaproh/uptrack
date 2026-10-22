@@ -1,5 +1,7 @@
 # uptrack
 
+![ci](https://github.com/vaproh/uptrack/actions/workflows/ci/badge.svg)
+
 Track and install standalone Linux apps from GitHub releases. You add a
 repo, uptrack picks the right file for your system, verifies it, and
 installs it under `~/.local`. Copy `config.yaml` to a new machine, run
@@ -7,7 +9,14 @@ installs it under `~/.local`. Copy `config.yaml` to a new machine, run
 
 ## Install
 
+Prebuilt Linux binaries (x86_64, aarch64) are on the
+[releases page](https://github.com/vaproh/uptrack/releases), or build
+from source:
+
 ```bash
+go install github.com/vaproh/uptrack/cmd/uptrack@latest
+# or
+git clone https://github.com/vaproh/uptrack && cd uptrack
 go build -o ~/.local/bin/uptrack ./cmd/uptrack
 ```
 

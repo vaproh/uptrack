@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"strings"
 
-	"uptrack/internal/config"
-	"uptrack/internal/gh"
-	"uptrack/internal/platform"
+	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/gh"
+	"github.com/vaproh/uptrack/internal/platform"
 )
 
 // Kind is how the asset installs.

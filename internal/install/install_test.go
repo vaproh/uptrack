@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"uptrack/internal/asset"
-	"uptrack/internal/config"
-	"uptrack/internal/gh"
+	"github.com/vaproh/uptrack/internal/asset"
+	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/gh"
 )
 
 func makeTarGz(t *testing.T, files map[string]string, modes map[string]int64) []byte {

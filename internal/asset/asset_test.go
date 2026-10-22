@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"uptrack/internal/config"
-	"uptrack/internal/gh"
-	"uptrack/internal/platform"
+	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/gh"
+	"github.com/vaproh/uptrack/internal/platform"
 )
 
 var host = platform.Host{OS: "linux", Arch: "amd64", Libc: "glibc"}

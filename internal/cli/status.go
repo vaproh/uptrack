@@ -7,13 +7,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"uptrack/internal/asset"
-	"uptrack/internal/color"
-	"uptrack/internal/config"
-	"uptrack/internal/gh"
-	"uptrack/internal/platform"
-	"uptrack/internal/prompt"
-	"uptrack/internal/version"
+	"github.com/vaproh/uptrack/internal/asset"
+	"github.com/vaproh/uptrack/internal/color"
+	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/gh"
+	"github.com/vaproh/uptrack/internal/platform"
+	"github.com/vaproh/uptrack/internal/prompt"
+	"github.com/vaproh/uptrack/internal/version"
 )
 
 // appStatus is the refreshed view of one tracked app.

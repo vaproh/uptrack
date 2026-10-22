@@ -6,11 +6,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"uptrack/internal/color"
-	"uptrack/internal/config"
-	"uptrack/internal/gh"
-	"uptrack/internal/install"
-	"uptrack/internal/prompt"
+	"github.com/vaproh/uptrack/internal/color"
+	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/gh"
+	"github.com/vaproh/uptrack/internal/install"
+	"github.com/vaproh/uptrack/internal/prompt"
 )
 
 func newInstall() *cobra.Command {
