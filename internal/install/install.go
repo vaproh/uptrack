@@ -103,7 +103,7 @@ func Install(ctx context.Context, req Request) (Result, error) {
 	res := Result{ExeRel: exeRel, Verified: verified, VerifiedBy: verifiedBy}
 	if !req.NoDesktop {
 		kind := effectiveKind(req)
-		if kind == asset.KindDeb || kind == asset.KindAppImage {
+		if kind == asset.KindDeb || kind == asset.KindAppImage || kind == asset.KindArchive {
 			files, note, err := installDesktopFiles(staged, exeAbs, kind, req.App.Name)
 			if err != nil {
 				return Result{}, err

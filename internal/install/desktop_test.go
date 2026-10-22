@@ -130,11 +130,38 @@ func TestRewriteIcon(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(iconDir, "tool.png"), []byte("png"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	body := rewriteDesktop("[Desktop Entry]\nName=tool\nExec=/usr/bin/tool\nIcon=tool\n", tree, "/opt/tool/tool", "tool")
+	body := rewriteDesktop("[Desktop Entry]\nName=tool\nExec=/usr/bin/tool\nIcon=tool\n", tree, "/opt/tool/tool", "tool", true)
 	if !strings.Contains(body, "Exec=/opt/tool/tool") {
 		t.Fatalf("Exec not rewritten:\n%s", body)
 	}
 	if !strings.Contains(body, "Icon="+filepath.Join(share, "icons", "tool-tool.png")) {
 		t.Fatalf("Icon not resolved:\n%s", body)
+	}
+}
+
+func TestRewriteWrapperExec(t *testing.T) {
+	// Mullvad-style relocatable wrapper: the shell dispatch and %k must
+	// go, the binary stands alone.
+	body := "[Desktop Entry]\nExec=sh -c 'start-it' dummy %k\n"
+	got := rewriteDesktop(body, t.TempDir(), "/opt/mb/Browser/start-mullvad-browser", "mb", false)
+	want := "Exec=/opt/mb/Browser/start-mullvad-browser"
+	lines := strings.Split(got, "\n")
+	found := false
+	for _, l := range lines {
+		if strings.TrimSpace(l) == want {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("wrapper not collapsed:\n%s", got)
+	}
+	if strings.Contains(got, "%k") || strings.Contains(got, "sh -c") {
+		t.Fatalf("wrapper remnants:\n%s", got)
+	}
+	// Normal line with a URL code keeps the code.
+	body = "[Desktop Entry]\nExec=/usr/bin/tool %U\n"
+	got = rewriteDesktop(body, t.TempDir(), "/opt/tool/tool", "tool", false)
+	if !strings.Contains(got, "Exec=/opt/tool/tool %U") {
+		t.Fatalf("field code dropped:\n%s", got)
 	}
 }

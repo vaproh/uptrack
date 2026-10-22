@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -25,17 +26,31 @@ func dataDir() string {
 }
 
 // installDesktopFiles copies launcher files for GUI installs into the
-// data dir and rewrites Exec to the installed binary. Only deb and
-// AppImage installs are handled; anything else returns nothing.
-// AppImage extraction needs FUSE, so a failure there is a note, never
-// an error: icons must not break an install.
+// data dir and rewrites Exec to the installed binary. deb and AppImage
+// trees are searched fully; archives only in the top two levels, where
+// launchers live. AppImage extraction needs FUSE, so a failure there
+// is a note, never an error: icons must not break an install.
 func installDesktopFiles(staged, exeAbs string, kind asset.Kind, appName string) (files []string, note string, err error) {
 	if dataDir() == "" {
 		return nil, "", fmt.Errorf("cannot locate data dir")
 	}
 	switch kind {
 	case asset.KindDeb:
-		files, err = installStagedDesktop(staged, exeAbs, appName)
+		files, err = installStagedDesktop(staged, exeAbs, appName, true)
+		if err != nil {
+			return nil, "", err
+		}
+		return files, "", nil
+	case asset.KindArchive:
+		var found []string
+		found, err = topLevelDesktops(staged)
+		if err != nil {
+			return nil, "", err
+		}
+		if len(found) == 0 {
+			return nil, "", nil
+		}
+		files, err := installDesktopList(staged, found, exeAbs, appName, false)
 		if err != nil {
 			return nil, "", err
 		}
@@ -54,7 +69,9 @@ func installDesktopFiles(staged, exeAbs string, kind asset.Kind, appName string)
 
 // installStagedDesktop copies .desktop files from tree into the data
 // dir, rewrites Exec, resolves icons, and returns installed paths.
-func installStagedDesktop(tree, exeAbs, appName string) ([]string, error) {
+// keepArgs preserves the original arguments; without it Exec becomes
+// the binary plus any surviving field codes.
+func installStagedDesktop(tree, exeAbs, appName string, keepArgs bool) ([]string, error) {
 	found, err := desktops(tree)
 	if err != nil {
 		return nil, err
@@ -62,8 +79,47 @@ func installStagedDesktop(tree, exeAbs, appName string) ([]string, error) {
 	if len(found) == 0 {
 		return nil, nil
 	}
+	return installDesktopList(tree, found, exeAbs, appName, keepArgs)
+}
+
+// topLevelDesktops finds .desktop files at most two levels deep.
+func topLevelDesktops(tree string) ([]string, error) {
+	var out []string
+	err := filepath.WalkDir(tree, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		rel, err := filepath.Rel(tree, p)
+		if err != nil {
+			return nil
+		}
+		depth := 0
+		if rel != "." {
+			depth = len(strings.Split(rel, string(os.PathSeparator)))
+		}
+		if d.IsDir() {
+			if depth >= 2 {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if depth <= 2 && strings.HasSuffix(p, ".desktop") {
+			out = append(out, p)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// installDesktopList copies found files into the data dir. tree is
+// the staged root, used to resolve relative icons.
+func installDesktopList(tree string, found []string, exeAbs, appName string, keepArgs bool) ([]string, error) {
 	appsDir := filepath.Join(dataDir(), "applications")
-	err = os.MkdirAll(appsDir, 0o755)
+	err := os.MkdirAll(appsDir, 0o755)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +129,7 @@ func installStagedDesktop(tree, exeAbs, appName string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		body := rewriteDesktop(string(raw), tree, exeAbs, appName)
+		body := rewriteDesktop(string(raw), tree, exeAbs, appName, keepArgs)
 		name := appName + "-" + filepath.Base(d)
 		target := filepath.Join(appsDir, name)
 		err = os.WriteFile(target, []byte(body), 0o644)
@@ -87,8 +143,11 @@ func installStagedDesktop(tree, exeAbs, appName string) ([]string, error) {
 }
 
 // rewriteDesktop points Exec at the installed binary and resolves the
-// Icon to a copied file when the package ships one.
-func rewriteDesktop(body, tree, exeAbs, appName string) string {
+// Icon to a copied file when the package ships one. With keepArgs the
+// original arguments are preserved; without it Exec becomes the binary
+// plus any surviving field codes (%F, %U...), dropping wrappers like
+// sh -c and the relocatable %k.
+func rewriteDesktop(body, tree, exeAbs, appName string, keepArgs bool) string {
 	var out []string
 	for _, line := range strings.Split(body, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -96,8 +155,12 @@ func rewriteDesktop(body, tree, exeAbs, appName string) string {
 		case strings.HasPrefix(trimmed, "Exec="):
 			exec := strings.TrimSpace(strings.TrimPrefix(trimmed, "Exec="))
 			rest := ""
-			if fields := strings.Fields(exec); len(fields) > 1 {
-				rest = " " + strings.Join(fields[1:], " ")
+			if keepArgs {
+				if fields := strings.Fields(exec); len(fields) > 1 {
+					rest = " " + strings.Join(fields[1:], " ")
+				}
+			} else {
+				rest = survivingCodes(exec)
 			}
 			out = append(out, "Exec="+exeAbs+rest)
 		case strings.HasPrefix(trimmed, "Icon="):
@@ -112,6 +175,23 @@ func rewriteDesktop(body, tree, exeAbs, appName string) string {
 		}
 	}
 	return strings.Join(out, "\n")
+}
+
+// survivingCodes keeps field codes (%F, %U...) from an Exec line,
+// dropping everything else including the relocatable %k, which is
+// meaningless once the file is copied out of its tree.
+func survivingCodes(exec string) string {
+	var kept []string
+	for _, f := range strings.Fields(exec) {
+		if len(f) == 2 && f[0] == '%' && f != "%k" &&
+			strings.ContainsRune("fFuUdDnNickvm", rune(f[1])) {
+			kept = append(kept, f)
+		}
+	}
+	if len(kept) == 0 {
+		return ""
+	}
+	return " " + strings.Join(kept, " ")
 }
 
 // installIcon copies a packaged icon into the data dir and returns its
@@ -190,7 +270,7 @@ func extractAppImageDesktop(appFile, exeAbs, appName string) ([]string, string, 
 	if _, err := os.Stat(root); err != nil {
 		return nil, "desktop integration skipped: no files extracted", nil
 	}
-	files, err := installStagedDesktop(root, exeAbs, appName)
+	files, err := installStagedDesktop(root, exeAbs, appName, true)
 	if err != nil {
 		return nil, "", err
 	}

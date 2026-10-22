@@ -64,12 +64,15 @@ the `ar` headers itself (~50 lines, no dependency), extracts
 
 ## Desktop integration
 
-`.deb` and AppImage installs copy `.desktop` launchers into
+`.deb`, AppImage and archive installs copy `.desktop` launchers into
 `~/.local/share/applications` (honors `XDG_DATA_HOME`), rewrite `Exec`
-to the installed binary, and resolve packaged icons. AppImage
-extraction needs FUSE; when it fails the install still succeeds with
-a note. `uninstall` removes the launcher files. `--no-desktop` opts
-out per install. `update-desktop-database` runs when present.
+to the installed binary, and resolve packaged icons. Archives are
+searched two levels deep; wrapper-style `Exec` lines (like Tor
+Browser's relocatable `sh -c ... %k`) collapse to the binary, keeping
+real field codes (`%U`, `%F`). AppImage extraction needs FUSE; when
+it fails the install still succeeds with a note. `uninstall` removes
+the launcher files. `--no-desktop` opts out per install.
+`update-desktop-database` runs when present.
 
 ## Archive safety
 
