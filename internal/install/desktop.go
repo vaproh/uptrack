@@ -175,12 +175,16 @@ func extractAppImageDesktop(appFile, exeAbs, appName string) ([]string, string, 
 		return nil, "", err
 	}
 	defer os.RemoveAll(tmp)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, appFile, "--appimage-extract", "*.desktop", "*.png", "*.svg", "*.xpm")
+	// Bare --appimage-extract: some runtimes reject file patterns and
+	// only accept an optional prefix, so extract everything and pick
+	// what is needed afterwards.
+	cmd := exec.CommandContext(ctx, appFile, "--appimage-extract")
 	cmd.Dir = tmp
-	if _, err := cmd.CombinedOutput(); err != nil {
-		return nil, "desktop integration skipped: AppImage extraction failed (needs FUSE)", nil
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, desktopSkipNote(out), nil
 	}
 	root := filepath.Join(tmp, "squashfs-root")
 	if _, err := os.Stat(root); err != nil {
@@ -191,6 +195,22 @@ func extractAppImageDesktop(appFile, exeAbs, appName string) ([]string, string, 
 		return nil, "", err
 	}
 	return files, "", nil
+}
+
+// desktopSkipNote explains a failed AppImage extraction. Missing
+// FUSE is the common cause; otherwise the runtime's own first line.
+func desktopSkipNote(out []byte) string {
+	if _, err := os.Stat("/dev/fuse"); err != nil {
+		return "desktop integration skipped: AppImage extraction failed (needs FUSE)"
+	}
+	first := strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0]
+	if len(first) > 120 {
+		first = first[:120] + "..."
+	}
+	if first == "" {
+		first = "extraction produced nothing usable"
+	}
+	return "desktop integration skipped: " + first
 }
 
 // updateDesktopDB refreshes the launcher database when available.

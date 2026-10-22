@@ -59,9 +59,11 @@ CLI only. Installs, upgrades, pins and uninstalls confirm unless
 Nonzero exit on any failure; partial failures in `check`/`sync`
 report per app and continue. Downloads show a progress bar on TTYs.
 `uptrack self-update` replaces the uptrack binary itself from the
-latest GitHub release, verified against `sha256sums.txt`. `remove`
-stops tracking and keeps files; `uninstall` deletes files and
-untracks. `doctor` verifies installs and reports problems.
+latest GitHub release, verified against `sha256sums.txt`.
+`uninstall-self` removes uptrack (binary, config, state; `--all`
+also removes installed apps). `remove` stops tracking and keeps
+files; `uninstall` deletes files and untracks. `doctor` verifies
+installs and reports problems.
 
 ## Known limits
 
