@@ -9,7 +9,13 @@ import (
 
 	"uptrack/internal/color"
 	"uptrack/internal/config"
+	"uptrack/internal/platform"
 )
+
+// hostOf returns the current host for asset selection.
+func hostOf() platform.Host {
+	return platform.Detect()
+}
 
 // ctx carries the shared loaded state for one invocation.
 type ctx struct {
@@ -53,7 +59,7 @@ func NewRoot() *cobra.Command {
 	root.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	root.PersistentFlags().BoolVarP(&assume, "yes", "y", false, "skip confirmation prompts")
 
-	root.AddCommand(newList(), newRemove())
+	root.AddCommand(newList(), newRemove(), newAdd(), newCheck(), newOutdated(), newInfo(), newLog())
 	return root
 }
 
