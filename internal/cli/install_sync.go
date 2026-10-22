@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -42,18 +43,29 @@ func newSync() *cobra.Command {
 			}
 			var jobs []job
 			results := refreshAll(c)
+			var skipped []string
 			for _, r := range results {
 				if r.err != nil || r.release == nil {
 					printStatus(c, r)
 					continue
 				}
 				installed := c.state.Apps[r.app.Name].InstalledVersion
-				if installed == "" || updateAvailable(installed, r.release) {
-					jobs = append(jobs, job{r.app, r.release.TagName})
+				tag := syncTag(r.app, installed, r.release)
+				if tag == "" {
+					if r.app.Pin != "" {
+						skipped = append(skipped, r.app.Name)
+					}
+					continue
 				}
+				jobs = append(jobs, job{r.app, tag})
 			}
 			if len(jobs) == 0 {
-				fmt.Println(color.Dim("everything is up to date"))
+				if len(skipped) == 0 {
+					fmt.Println(color.Dim("everything is up to date"))
+				} else {
+					fmt.Printf("%s pinned, nothing to do: %s\n",
+						color.Dim("skipped"), strings.Join(skipped, ", "))
+				}
 				return nil
 			}
 			if !c.assume {
@@ -94,7 +106,11 @@ func newSync() *cobra.Command {
 }
 
 // installApp resolves the release, confirms, installs and records state.
+// A bare install of a pinned app installs the pin; --version overrides.
 func installApp(c *ctx, app *config.App, tag string) error {
+	if tag == "" && app.Pin != "" {
+		tag = app.Pin
+	}
 	rels, err := fetchReleases(app)
 	if err != nil {
 		return err

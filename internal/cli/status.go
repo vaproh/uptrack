@@ -109,13 +109,34 @@ func updateAvailable(installed string, rel *gh.Release) bool {
 	return version.Compare(installed, rel.TagName) < 0
 }
 
-// needsAttention reports whether an app should appear in outdated:
-// not installed yet, or a newer release exists.
-func needsAttention(installed string, rel *gh.Release) bool {
+// needsAttention reports whether an app should appear in outdated.
+// Pinned apps only nag when they are not on the pin.
+func needsAttention(app config.App, installed string, rel *gh.Release) bool {
 	if rel == nil {
 		return false
 	}
+	if app.Pin != "" {
+		return installed != app.Pin
+	}
 	return installed == "" || updateAvailable(installed, rel)
+}
+
+// syncTag returns the tag sync should install for an app, or "" to
+// skip it. Pinned apps install the pin until they are on it.
+func syncTag(app config.App, installed string, rel *gh.Release) string {
+	if rel == nil {
+		return ""
+	}
+	if app.Pin != "" {
+		if installed == app.Pin {
+			return ""
+		}
+		return app.Pin
+	}
+	if installed == "" || updateAvailable(installed, rel) {
+		return rel.TagName
+	}
+	return ""
 }
 
 func newCheck() *cobra.Command {
@@ -150,7 +171,7 @@ func newOutdated() *cobra.Command {
 				if r.err != nil || r.release == nil {
 					continue
 				}
-				if needsAttention(c.state.Apps[r.app.Name].InstalledVersion, r.release) {
+				if needsAttention(r.app, c.state.Apps[r.app.Name].InstalledVersion, r.release) {
 					printStatus(c, r)
 					any = true
 				}
@@ -178,6 +199,12 @@ func printStatus(c *ctx, r appStatus) {
 	tag := rel.TagName
 	if rel.Prerelease {
 		tag += color.Yellow(" (prerelease)")
+	}
+	if r.app.Pin != "" {
+		fmt.Printf("%s\n  %s %s  %s %s\n", head,
+			color.Dim("pinned at"), color.Cyan(r.app.Pin),
+			color.Dim("latest"), color.Cyan(tag))
+		return
 	}
 	switch {
 	case installed == "":

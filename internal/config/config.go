@@ -27,10 +27,13 @@ type InstallSpec struct {
 }
 
 // App is one tracked application. Only Name, Repo and Channel are required.
+// Pin holds the app at one version: sync skips it, and a bare install
+// installs the pin.
 type App struct {
 	Name    string       `yaml:"name"`
 	Repo    string       `yaml:"repo"`
 	Channel string       `yaml:"channel"`
+	Pin     string       `yaml:"pin,omitempty"`
 	Asset   *AssetRule   `yaml:"asset,omitempty"`
 	Install *InstallSpec `yaml:"install,omitempty"`
 }
