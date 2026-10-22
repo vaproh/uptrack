@@ -58,25 +58,120 @@ func newRemove() *cobra.Command {
 }
 
 func newUninstall() *cobra.Command {
-	return &cobra.Command{
+	var keepFiles, keepLaunchers, keepTracking bool
+	cmd := &cobra.Command{
 		Use:   "uninstall <name>",
 		Short: "Delete an application's files and stop tracking it",
 		Args:  cobra.ExactArgs(1),
 		RunE: runE(func(c *ctx, args []string) error {
-			app, err := c.cfg.Find(args[0])
+			return uninstallFlow(c, args[0], keepFiles, keepLaunchers, keepTracking)
+		}),
+	}
+	cmd.Flags().BoolVar(&keepFiles, "keep-files", false, "keep installed app files")
+	cmd.Flags().BoolVar(&keepLaunchers, "keep-launchers", false, "keep launcher files")
+	cmd.Flags().BoolVar(&keepTracking, "keep-tracking", false, "keep tracking the app")
+	return cmd
+}
+
+// uninstallFlow removes the tracking entry, app files and launcher
+// files. Interactively it shows what exists and asks per component;
+// -y or the --keep flags decide without asking. Launcher files are
+// the .desktop entries that put the app in your app menu.
+func uninstallFlow(c *ctx, name string, keepFiles, keepLaunchers, keepTracking bool) error {
+	app, err := c.cfg.Find(name)
+	if err != nil {
+		return err
+	}
+	st := c.state.Apps[name]
+	dest := installDest(c, app)
+	_, derr := os.Lstat(dest)
+	hasFiles := derr == nil
+	var launchers []string
+	for _, f := range st.DesktopFiles {
+		if _, err := os.Lstat(f); err == nil {
+			launchers = append(launchers, f)
+		}
+	}
+
+	doUntrack, doFiles, doLaunch := !keepTracking, hasFiles && !keepFiles, len(launchers) > 0 && !keepLaunchers
+	if !c.assume {
+		fmt.Printf("uninstall %s:\n", color.Bold(name))
+		if doUntrack {
+			fmt.Println("  tracking entry in config")
+		}
+		if doFiles {
+			fmt.Printf("  app files at %s\n", color.Dim(dest))
+		}
+		if doLaunch {
+			fmt.Println("  launcher files (.desktop entries for your app menu):")
+			for _, f := range launchers {
+				fmt.Printf("    %s\n", color.Dim(f))
+			}
+		}
+		if !doUntrack && !doFiles && !doLaunch {
+			fmt.Println(color.Dim("nothing to remove"))
+			return nil
+		}
+		if doUntrack && !prompt.Confirm("stop tracking it (remove from config)?") {
+			doUntrack = false
+		}
+		if doFiles && !prompt.Confirm(fmt.Sprintf("delete app files at %s?", dest)) {
+			doFiles = false
+		}
+		if doLaunch && !prompt.Confirm("delete launcher files?") {
+			doLaunch = false
+		}
+		if !doUntrack && !doFiles && !doLaunch {
+			fmt.Println(color.Dim("aborted"))
+			return nil
+		}
+	}
+
+	if doLaunch {
+		err := install.RemoveDesktopFiles(launchers)
+		if err != nil {
+			return err
+		}
+	}
+	if doFiles {
+		err = os.RemoveAll(dest)
+		if err != nil {
+			return fmt.Errorf("remove %s: %w", dest, err)
+		}
+		link := binLink(c, name)
+		if _, err := os.Lstat(link); err == nil {
+			err = os.Remove(link)
+			if err != nil {
+				return fmt.Errorf("remove %s: %w", link, err)
+			}
+		}
+	}
+	if doUntrack {
+		_, err = dropApp(c, name)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Tracking stays, so state must match what remains.
+		if doFiles {
+			st.InstalledVersion = ""
+			st.InstalledAsset = ""
+			st.ExeRel = ""
+			st.Verified = false
+		}
+		if doLaunch {
+			st.DesktopFiles = nil
+		}
+		if doFiles || doLaunch {
+			c.state.Apps[name] = st
+			err = config.SaveState(c.paths.StateFile, c.state)
 			if err != nil {
 				return err
 			}
-			dest := installDest(c, app)
-			if !c.assume {
-				if !prompt.Confirm(fmt.Sprintf("delete %s and stop tracking it?", dest)) {
-					fmt.Println(color.Dim("aborted"))
-					return nil
-				}
-			}
-			return uninstallApp(c, args[0])
-		}),
+		}
 	}
+	fmt.Printf("uninstalled %s\n", color.Bold(name))
+	return nil
 }
 
 // untrack removes the config entry and state, leaving files alone.
@@ -86,34 +181,6 @@ func untrack(c *ctx, name string) error {
 		return err
 	}
 	fmt.Printf("removed %s (files left in place)\n", color.Bold(name))
-	return nil
-}
-
-// uninstallApp deletes installed files, launcher entries and the
-// symlink, then untracks.
-func uninstallApp(c *ctx, name string) error {
-	desktop := c.state.Apps[name].DesktopFiles
-	app, err := dropApp(c, name)
-	if err != nil {
-		return err
-	}
-	err = install.RemoveDesktopFiles(desktop)
-	if err != nil {
-		return err
-	}
-	dest := installDest(c, app)
-	err = os.RemoveAll(dest)
-	if err != nil {
-		return fmt.Errorf("remove %s: %w", dest, err)
-	}
-	link := binLink(c, name)
-	if _, err := os.Lstat(link); err == nil {
-		err = os.Remove(link)
-		if err != nil {
-			return fmt.Errorf("remove %s: %w", link, err)
-		}
-	}
-	fmt.Printf("uninstalled %s\n", color.Bold(name))
 	return nil
 }
 

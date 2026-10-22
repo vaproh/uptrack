@@ -62,8 +62,9 @@ report per app and continue. Downloads show a progress bar on TTYs.
 latest GitHub release, verified against `sha256sums.txt`.
 `uninstall-self` removes uptrack (binary, config, state; `--all`
 also removes installed apps). `remove` stops tracking and keeps
-files; `uninstall` deletes files and untracks. `doctor` verifies
-installs and reports problems.
+files; `uninstall` shows what exists (tracking entry, app files,
+launcher files) and asks per component, with `--keep-*` to skip
+without asking. `doctor` verifies installs and reports problems.
 
 ## Known limits
 

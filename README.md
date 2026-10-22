@@ -89,7 +89,7 @@ uptrack sync                       # install missing + upgrade outdated
 uptrack self-update                # update uptrack itself
 uptrack version                    # print version
 uptrack remove <name>               # stop tracking, keep files
-uptrack uninstall <name>            # delete files + stop tracking
+uptrack uninstall <name> [--keep-files]   # asks per component what to remove
 uptrack uninstall-self [--all]      # remove uptrack itself
 uptrack pin <name> [tag]            # hold a version, sync skips it
 uptrack unpin <name>                # follow the channel again
