@@ -27,11 +27,16 @@ right file for your system, verify it, and put it on your `PATH`.
 - **Automatic asset selection** — OS, arch and libc filtering with
   format preference. It asks on ambiguity instead of guessing.
 - **Verified downloads** — sha256 checked against the digest GitHub
-  publishes; missing digests are labeled, never silently trusted.
+  publishes, else `<asset>.sha256` / `SHA256SUMS` files on the same
+  release. Missing both means labeled unverified, never silently
+  trusted.
 - **Safe installs** — atomic swap keeps the old version live until the
   new one is staged; archives are extracted with traversal protection.
 - **`.deb` without root** — extracts the payload into `~/.local`,
   never touches dpkg or maintainer scripts.
+- **Desktop launchers** — `.deb` and AppImage installs appear in your
+  launcher; `uninstall` removes them, `--no-desktop` skips them.
+- **Pin versions** — hold an app back from `sync` until you are ready.
 - **Dotfiles-friendly** — three required fields per app, machine state
   kept separate, `uptrack sync` restores everything on a new box.
 

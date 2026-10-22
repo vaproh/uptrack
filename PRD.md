@@ -21,6 +21,7 @@ Everything else inferred, overridable per app:
 ```yaml
 asset: {match: glob, exclude: [globs]}
 install: {type: binary|archive|appimage|deb, dest, exe}
+pin: v1.19.2                     # optional: hold this version
 ```
 
 State (installed/latest versions) in `~/.local/state/uptrack/state.json`.
@@ -36,10 +37,13 @@ to automatic selection with a warning.
 
 ## Install pipeline
 
-Temp download → size check → sha256 vs published digest (missing digest
-= labeled unverified, mismatch = abort) → extract → stage → atomic
-rename swap → chmod → symlink → record state. Rollback is
-`install --version <older-tag>`.
+Temp download (progress bar on TTYs) → size check → sha256
+vs published digest, else `<asset>.sha256` / `SHA256SUMS` fallback
+(still unverified when neither exists, mismatch = abort) → extract →
+stage next to the destination (same filesystem, so the rename swap
+cannot hit cross-device link) → atomic swap → chmod → symlink →
+launcher files for deb/AppImage → record state. Rollback is
+`install --version <older-tag>`; `pin` holds a version instead.
 
 Format handling: tar.gz/bz2 + zip from stdlib, xz/zst via system
 binaries, `.deb` via Go-native `ar` parse of `data.tar.*` only (no
@@ -50,11 +54,14 @@ single top dir, exactly one executable — else require `install.exe`.
 
 ## Interface
 
-CLI only. Installs/upgrades confirm unless `-y`. Colors on TTY only,
-`NO_COLOR` and `--no-color` respected. Nonzero exit on any failure;
-partial failures in `check`/`sync` report per app and continue.
+CLI only. Installs, upgrades, pins and uninstalls confirm unless
+`-y`. Colors on TTY only, `NO_COLOR` and `--no-color` respected.
+Nonzero exit on any failure; partial failures in `check`/`sync`
+report per app and continue. Downloads show a progress bar on TTYs.
 `uptrack self-update` replaces the uptrack binary itself from the
-latest GitHub release, verified against `sha256sums.txt`.
+latest GitHub release, verified against `sha256sums.txt`. `remove`
+stops tracking and keeps files; `uninstall` deletes files and
+untracks. `doctor` verifies installs and reports problems.
 
 ## Known limits
 

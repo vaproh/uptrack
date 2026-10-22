@@ -26,10 +26,13 @@ All four must pass before any commit.
 - `internal/version` — tolerant tag comparison.
 - `internal/install` — download, verify, extract, place, symlink.
   No prompts, no output except `ldd` warnings.
+- `internal/selfupdate` — replace the running binary from the latest
+  release. No prompts, no output; cli confirms and reports.
 - `internal/color` — ANSI helpers. Only package that knows about TTY.
 - `internal/prompt` — stdin confirm/choose. TTY-only, fail otherwise.
-- `internal/cli` — cobra commands. Only place that prints, prompts,
-  or uses color.
+- `internal/cli` — cobra commands (list, remove, uninstall, add, check,
+  outdated, info, log, install, sync, pin, unpin, doctor, version,
+  self-update). Only place that prints, prompts, or uses color.
 
 ## Rules
 

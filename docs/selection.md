@@ -1,7 +1,7 @@
 # Asset selection
 
 Upstream renames assets between releases, so selection re-runs on every
-release instead of pinning a filename. It is a pipeline of reject
+release instead of recording a filename. It is a pipeline of reject
 filters followed by ranking. It never guesses: a tie asks on a terminal
 and errors otherwise.
 
