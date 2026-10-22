@@ -105,7 +105,7 @@ func TestSmoke(t *testing.T) {
 	if !strings.Contains(out, "up to date") {
 		t.Fatalf("should be up to date after install: %s", out)
 	}
-	run("remove", "tool", "--purge")
+	run("uninstall", "tool", "-y")
 	if _, err := os.Lstat(filepath.Join(home, ".local", "opt", "tool")); !os.IsNotExist(err) {
 		t.Fatal("purge should delete install dir")
 	}

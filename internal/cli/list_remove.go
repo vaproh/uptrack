@@ -9,6 +9,7 @@ import (
 
 	"github.com/vaproh/uptrack/internal/color"
 	"github.com/vaproh/uptrack/internal/config"
+	"github.com/vaproh/uptrack/internal/prompt"
 )
 
 func newList() *cobra.Command {
@@ -45,62 +46,95 @@ func newList() *cobra.Command {
 }
 
 func newRemove() *cobra.Command {
-	var purge bool
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "remove <name>",
 		Short: "Stop tracking an application (files are left alone)",
 		Args:  cobra.ExactArgs(1),
 		RunE: runE(func(c *ctx, args []string) error {
-			return removeApp(c, args[0], purge)
+			return untrack(c, args[0])
 		}),
 	}
-	cmd.Flags().BoolVar(&purge, "purge", false, "also delete installed files and symlink")
-	return cmd
 }
 
-func removeApp(c *ctx, name string, purge bool) error {
-	kept := c.cfg.Apps[:0]
-	found := false
-	var app config.App
-	for _, a := range c.cfg.Apps {
-		if a.Name == name {
-			found = true
-			app = a
-		} else {
-			kept = append(kept, a)
+func newUninstall() *cobra.Command {
+	return &cobra.Command{
+		Use:   "uninstall <name>",
+		Short: "Delete an application's files and stop tracking it",
+		Args:  cobra.ExactArgs(1),
+		RunE: runE(func(c *ctx, args []string) error {
+			app, err := c.cfg.Find(args[0])
+			if err != nil {
+				return err
+			}
+			dest := installDest(c, app)
+			if !c.assume {
+				if !prompt.Confirm(fmt.Sprintf("delete %s and stop tracking it?", dest)) {
+					fmt.Println(color.Dim("aborted"))
+					return nil
+				}
+			}
+			return uninstallApp(c, args[0])
+		}),
+	}
+}
+
+// untrack removes the config entry and state, leaving files alone.
+func untrack(c *ctx, name string) error {
+	_, err := dropApp(c, name)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("removed %s (files left in place)\n", color.Bold(name))
+	return nil
+}
+
+// uninstallApp deletes installed files and the symlink, then untracks.
+func uninstallApp(c *ctx, name string) error {
+	app, err := dropApp(c, name)
+	if err != nil {
+		return err
+	}
+	dest := installDest(c, app)
+	err = os.RemoveAll(dest)
+	if err != nil {
+		return fmt.Errorf("remove %s: %w", dest, err)
+	}
+	link := binLink(c, name)
+	if _, err := os.Lstat(link); err == nil {
+		err = os.Remove(link)
+		if err != nil {
+			return fmt.Errorf("remove %s: %w", link, err)
 		}
 	}
-	if !found {
-		return fmt.Errorf("%w: %s", config.ErrNotFound, name)
+	fmt.Printf("uninstalled %s\n", color.Bold(name))
+	return nil
+}
+
+// dropApp removes the config entry and state, returning the app.
+func dropApp(c *ctx, name string) (*config.App, error) {
+	kept := c.cfg.Apps[:0]
+	var app *config.App
+	for i := range c.cfg.Apps {
+		if c.cfg.Apps[i].Name == name {
+			app = &c.cfg.Apps[i]
+		} else {
+			kept = append(kept, c.cfg.Apps[i])
+		}
+	}
+	if app == nil {
+		return nil, fmt.Errorf("%w: %s", config.ErrNotFound, name)
 	}
 	c.cfg.Apps = kept
 	err := config.SaveConfig(c.paths.ConfigFile, c.cfg)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	delete(c.state.Apps, name)
 	err = config.SaveState(c.paths.StateFile, c.state)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if purge {
-		dest := installDest(c, &app)
-		err = os.RemoveAll(dest)
-		if err != nil {
-			return fmt.Errorf("remove %s: %w", dest, err)
-		}
-		link := binLink(c, name)
-		if _, err := os.Lstat(link); err == nil {
-			err = os.Remove(link)
-			if err != nil {
-				return fmt.Errorf("remove %s: %w", link, err)
-			}
-		}
-		fmt.Printf("removed %s and its files\n", color.Bold(name))
-	} else {
-		fmt.Printf("removed %s (files left in place)\n", color.Bold(name))
-	}
-	return nil
+	return app, nil
 }
 
 func binLink(c *ctx, name string) string {

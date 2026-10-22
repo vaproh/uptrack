@@ -83,7 +83,8 @@ uptrack install <name> [--version <tag>]
 uptrack sync                       # install missing + upgrade outdated
 uptrack self-update                # update uptrack itself
 uptrack version                    # print version
-uptrack remove <name> [--purge]    # stop tracking, optionally delete files
+uptrack remove <name>               # stop tracking, keep files
+uptrack uninstall <name>            # delete files + stop tracking
 ```
 
 Installs and upgrades confirm unless `-y`. Colors follow the terminal;
