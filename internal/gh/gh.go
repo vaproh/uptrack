@@ -39,8 +39,13 @@ type Client struct {
 }
 
 // New builds a client. base is the API root and is only overridden
-// in tests. An empty token means unauthenticated (60 req/hour).
+// in tests. UPTRACK_GITHUB_API overrides the default API root, which
+// also enables GitHub Enterprise Server. An empty token means
+// unauthenticated (60 req/hour).
 func New(base, token string) *Client {
+	if base == "" {
+		base = getenv("UPTRACK_GITHUB_API")
+	}
 	if base == "" {
 		base = "https://api.github.com"
 	}

@@ -109,6 +109,15 @@ func updateAvailable(installed string, rel *gh.Release) bool {
 	return version.Compare(installed, rel.TagName) < 0
 }
 
+// needsAttention reports whether an app should appear in outdated:
+// not installed yet, or a newer release exists.
+func needsAttention(installed string, rel *gh.Release) bool {
+	if rel == nil {
+		return false
+	}
+	return installed == "" || updateAvailable(installed, rel)
+}
+
 func newCheck() *cobra.Command {
 	return &cobra.Command{
 		Use:   "check",
@@ -133,7 +142,7 @@ func newCheck() *cobra.Command {
 func newOutdated() *cobra.Command {
 	return &cobra.Command{
 		Use:   "outdated",
-		Short: "Show only apps with a newer release available",
+		Short: "Show apps needing attention (missing or upgradable)",
 		RunE: runE(func(c *ctx, args []string) error {
 			results := refreshAll(c)
 			any := false
@@ -141,8 +150,7 @@ func newOutdated() *cobra.Command {
 				if r.err != nil || r.release == nil {
 					continue
 				}
-				installed := c.state.Apps[r.app.Name].InstalledVersion
-				if updateAvailable(installed, r.release) {
+				if needsAttention(c.state.Apps[r.app.Name].InstalledVersion, r.release) {
 					printStatus(c, r)
 					any = true
 				}
