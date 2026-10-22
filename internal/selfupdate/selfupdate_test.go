@@ -54,7 +54,7 @@ func TestUpdateInstalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	client := gh.New(srv.URL, "")
-	tag, updated, err := Update(context.Background(), client, exe, "v0.1.0")
+	tag, updated, err := Update(context.Background(), client, exe, "v0.1.0", nil)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestUpdateCurrent(t *testing.T) {
 		t.Fatal(err)
 	}
 	client := gh.New(srv.URL, "")
-	tag, updated, err := Update(context.Background(), client, exe, "v0.2.0")
+	tag, updated, err := Update(context.Background(), client, exe, "v0.2.0", nil)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}

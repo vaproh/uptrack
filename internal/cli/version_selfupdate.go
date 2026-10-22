@@ -57,7 +57,8 @@ func newSelfUpdate() *cobra.Command {
 				fmt.Println(color.Dim("aborted"))
 				return nil
 			}
-			tag, updated, err := selfupdate.Update(context.Background(), client, exe, Version)
+			tag, updated, err := selfupdate.Update(context.Background(), client, exe, Version, downloadBar())
+			finishBar()
 			if err != nil {
 				return err
 			}

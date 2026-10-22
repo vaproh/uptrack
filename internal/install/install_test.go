@@ -224,3 +224,58 @@ func TestFindExeAmbiguous(t *testing.T) {
 		t.Fatalf("hint failed: %q %v", got, err)
 	}
 }
+
+func TestStageLivesWithDest(t *testing.T) {
+	// Regression: staging in os.TempDir breaks the rename swap when
+	// /tmp and the destination are different filesystems. Staging
+	// must live next to the destination, and stale stages from
+	// interrupted installs must be cleaned.
+	data := []byte(helloScript)
+	srv, sum := serve(t, data)
+	root := t.TempDir()
+	optDir := filepath.Join(root, "opt")
+	if err := os.MkdirAll(optDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(optDir, ".uptrack-stage-12345")
+	if err := os.MkdirAll(stale, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var calls []int64
+	a := gh.Asset{Name: "hello", Size: int64(len(data)), Digest: sum, DownloadURL: srv.URL + "/x"}
+	req := Request{
+		App:      config.App{Name: "hello", Repo: "o/hello", Channel: "stable"},
+		Sel:      asset.Selection{Asset: a, Kind: asset.KindBinary},
+		Tag:      "v1.0",
+		DestDir:  filepath.Join(optDir, "hello"),
+		BinDir:   filepath.Join(root, "bin"),
+		Progress: func(done, total int64) { calls = append(calls, done) },
+	}
+	_, err := Install(context.Background(), req)
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if _, serr := os.Lstat(stale); !os.IsNotExist(serr) {
+		t.Fatal("stale staging dir was not cleaned")
+	}
+	entries, err := os.ReadDir(optDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".uptrack-stage-") {
+			t.Fatalf("staging dir leaked: %s", e.Name())
+		}
+	}
+	if len(calls) == 0 {
+		t.Fatal("progress callback never fired")
+	}
+	if calls[len(calls)-1] != int64(len(data)) {
+		t.Fatalf("final progress %d, want %d", calls[len(calls)-1], len(data))
+	}
+	for i := 1; i < len(calls); i++ {
+		if calls[i] < calls[i-1] {
+			t.Fatal("progress must not go backwards")
+		}
+	}
+}

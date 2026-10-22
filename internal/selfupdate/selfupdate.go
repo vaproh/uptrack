@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -28,7 +29,7 @@ const (
 // than currentVersion, replaces the binary at currentPath. It returns
 // the latest tag and whether an update was installed. "dev" builds
 // always update.
-func Update(ctx context.Context, client *gh.Client, currentPath, currentVersion string) (string, bool, error) {
+func Update(ctx context.Context, client *gh.Client, currentPath, currentVersion string, progress func(downloaded, total int64)) (string, bool, error) {
 	rel, err := client.Latest(ctx, Owner, Repo)
 	if err != nil {
 		return "", false, err
@@ -67,14 +68,14 @@ func Update(ctx context.Context, client *gh.Client, currentPath, currentVersion 
 		return "", false, err
 	}
 
-	tmp, err := os.CreateTemp("", "uptrack-self-*")
+	tmp, err := os.CreateTemp(filepath.Dir(currentPath), ".uptrack-self-*")
 	if err != nil {
 		return "", false, err
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
 	httpClient := &http.Client{Timeout: 30 * time.Minute}
-	_, err = install.Download(ctx, httpClient, *bin, tmp)
+	_, err = install.Download(ctx, httpClient, *bin, tmp, progress)
 	if err != nil {
 		tmp.Close()
 		return "", false, err

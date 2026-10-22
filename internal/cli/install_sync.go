@@ -127,12 +127,14 @@ func installApp(c *ctx, app *config.App, tag string) error {
 		}
 	}
 	res, err := install.Install(context.Background(), install.Request{
-		App:     *app,
-		Sel:     sel,
-		Tag:     rel.TagName,
-		DestDir: dest,
-		BinDir:  c.paths.BinDir,
+		App:      *app,
+		Sel:      sel,
+		Tag:      rel.TagName,
+		DestDir:  dest,
+		BinDir:   c.paths.BinDir,
+		Progress: downloadBar(),
 	})
+	finishBar()
 	if err != nil {
 		return err
 	}

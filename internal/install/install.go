@@ -31,6 +31,8 @@ type Request struct {
 	DestDir string
 	BinDir  string
 	Client  *http.Client
+	// Progress receives download progress; nil means silent.
+	Progress func(downloaded, total int64)
 }
 
 // Result reports what was installed.
@@ -52,7 +54,7 @@ func Install(ctx context.Context, req Request) (Result, error) {
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
 
-	n, err := download(ctx, client, req.Sel.Asset, tmp)
+	n, err := download(ctx, client, req.Sel.Asset, tmp, req.Progress)
 	if err != nil {
 		tmp.Close()
 		return Result{}, err
@@ -104,7 +106,13 @@ func stage(req Request, file string) (string, string, error) {
 	if req.App.Install != nil && req.App.Install.Type != "" {
 		kind = asset.Kind(req.App.Install.Type)
 	}
-	staged, err := os.MkdirTemp("", "uptrack-stage-*")
+	parent := filepath.Dir(req.DestDir)
+	err := os.MkdirAll(parent, 0o755)
+	if err != nil {
+		return "", "", err
+	}
+	cleanStaleStages(parent)
+	staged, err := os.MkdirTemp(parent, ".uptrack-stage-*")
 	if err != nil {
 		return "", "", err
 	}
@@ -180,6 +188,20 @@ func swapIn(dest, staged string) error {
 	return nil
 }
 
+// cleanStaleStages removes leftover staging dirs from interrupted
+// installs. shortcut: the name prefix is unique to staging, never user data.
+func cleanStaleStages(parent string) {
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() && strings.HasPrefix(e.Name(), ".uptrack-stage-") {
+			os.RemoveAll(filepath.Join(parent, e.Name()))
+		}
+	}
+}
+
 func linkBin(binDir, name, exeAbs string) error {
 	err := os.MkdirAll(binDir, 0o755)
 	if err != nil {
@@ -199,12 +221,30 @@ func linkBin(binDir, name, exeAbs string) error {
 	return nil
 }
 
-func download(ctx context.Context, client *http.Client, a gh.Asset, w io.Writer) (int64, error) {
-	return Download(ctx, client, a, w)
+func download(ctx context.Context, client *http.Client, a gh.Asset, w io.Writer, progress func(downloaded, total int64)) (int64, error) {
+	return Download(ctx, client, a, w, progress)
 }
 
-// Download fetches an asset URL into w, streaming.
-func Download(ctx context.Context, client *http.Client, a gh.Asset, w io.Writer) (int64, error) {
+// Download fetches an asset URL into w, streaming. progress receives
+// byte counts and may be nil.
+// progressReader reports byte counts to fn on every read.
+type progressReader struct {
+	r     io.Reader
+	total int64
+	done  int64
+	fn    func(downloaded, total int64)
+}
+
+func (p *progressReader) Read(b []byte) (int, error) {
+	n, err := p.r.Read(b)
+	if n > 0 && p.fn != nil {
+		p.done += int64(n)
+		p.fn(p.done, p.total)
+	}
+	return n, err
+}
+
+func Download(ctx context.Context, client *http.Client, a gh.Asset, w io.Writer, progress func(downloaded, total int64)) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.DownloadURL, nil)
 	if err != nil {
 		return 0, err
@@ -218,7 +258,8 @@ func Download(ctx context.Context, client *http.Client, a gh.Asset, w io.Writer)
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("download: unexpected status %s", resp.Status)
 	}
-	n, err := io.Copy(w, resp.Body)
+	body := &progressReader{r: resp.Body, total: a.Size, fn: progress}
+	n, err := io.Copy(w, body)
 	if err != nil {
 		return n, fmt.Errorf("download: %w", err)
 	}
