@@ -70,7 +70,7 @@ jobs:
         with:
           go-version: stable
       - name: build
-        run: GOOS=linux GOARCH=${{ matrix.goarch }} go build -o uptrack-linux-${{ matrix.suffix }} ./cmd/uptrack
+        run: GOOS=linux GOARCH=${{ matrix.goarch }} go build -ldflags "-X github.com/vaproh/uptrack/internal/cli.Version=${{ github.ref_name }}" -o uptrack-linux-${{ matrix.suffix }} ./cmd/uptrack
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.suffix }}

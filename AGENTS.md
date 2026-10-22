@@ -58,3 +58,6 @@ generates the changelog from conventional commits via git-cliff
 (`cliff.toml`), and publishes binaries + `CHANGELOG.md` +
 `sha256sums.txt`. Write commit messages accordingly: `feat:`, `fix:`,
 `docs:` group the notes; anything else lands under Miscellaneous.
+Release builds stamp the version via
+`-X github.com/vaproh/uptrack/internal/cli.Version=<tag>`; local builds
+report `dev`, and `self-update` treats `dev` as always updatable.

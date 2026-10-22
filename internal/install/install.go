@@ -67,7 +67,7 @@ func Install(ctx context.Context, req Request) (Result, error) {
 
 	verified := false
 	if req.Sel.Asset.Digest != "" {
-		err = verifyDigest(tmpName, req.Sel.Asset.Digest)
+		err = VerifyDigest(tmpName, req.Sel.Asset.Digest)
 		if err != nil {
 			return Result{}, err
 		}
@@ -200,6 +200,11 @@ func linkBin(binDir, name, exeAbs string) error {
 }
 
 func download(ctx context.Context, client *http.Client, a gh.Asset, w io.Writer) (int64, error) {
+	return Download(ctx, client, a, w)
+}
+
+// Download fetches an asset URL into w, streaming.
+func Download(ctx context.Context, client *http.Client, a gh.Asset, w io.Writer) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.DownloadURL, nil)
 	if err != nil {
 		return 0, err
@@ -220,9 +225,9 @@ func download(ctx context.Context, client *http.Client, a gh.Asset, w io.Writer)
 	return n, nil
 }
 
-// verifyDigest checks "algo:hex" digests. Only sha256 and sha512 are
+// VerifyDigest checks "algo:hex" digests. Only sha256 and sha512 are
 // supported; anything else is an explicit error, not a silent pass.
-func verifyDigest(path, digest string) error {
+func VerifyDigest(path, digest string) error {
 	algo, hexSum, ok := strings.Cut(digest, ":")
 	if !ok {
 		return fmt.Errorf("unrecognized digest format %q", digest)

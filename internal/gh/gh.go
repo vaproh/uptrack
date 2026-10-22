@@ -191,6 +191,21 @@ func FindRelease(rels []Release, tag string) *Release {
 	return nil
 }
 
+// Latest fetches the single latest published release. It returns
+// nil without error when the repo has no releases.
+func (c *Client) Latest(ctx context.Context, owner, repo string) (*Release, error) {
+	var r releaseJSON
+	_, err := c.get(ctx, fmt.Sprintf("%s/repos/%s/%s/releases/latest", c.base, owner, repo), &r)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, nil
+		}
+		return nil, err
+	}
+	rel := toRelease(r)
+	return &rel, nil
+}
+
 // nextPage extracts the URL with rel="next" from a Link header.
 func nextPage(link string) string {
 	for _, part := range strings.Split(link, ",") {

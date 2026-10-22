@@ -43,9 +43,18 @@ right file for your system, verify it, and put it on your `PATH`.
 
 ## Install
 
-Prebuilt Linux binaries (x86_64, aarch64) are on the
-[releases page](https://github.com/vaproh/uptrack/releases), or build
-from source (Go 1.27+):
+One line, no root needed:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vaproh/uptrack/main/install.sh | sh
+```
+
+Detects your architecture, downloads the latest release with checksum
+verification, and places `uptrack` in `~/.local/bin`.
+`INSTALL_DIR` overrides the destination, `UPTRACK_VERSION=v0.1.0` pins
+a version.
+
+Or build from source (Go 1.27+):
 
 ```bash
 go install github.com/vaproh/uptrack/cmd/uptrack@latest
@@ -54,6 +63,18 @@ go install github.com/vaproh/uptrack/cmd/uptrack@latest
 `.tar.xz` and `.tar.zst` extraction shells out to the system `xz` and
 `zstd` binaries. Everything else is stdlib; dependencies are `cobra`
 and `yaml.v3` only.
+
+## Updating
+
+```bash
+uptrack self-update        # replace this binary with the latest release
+uptrack self-update -y     # no confirmation
+uptrack version            # what you are running
+```
+
+`self-update` verifies the download against the release's
+`sha256sums.txt` before replacing the binary. The curl installer above
+is only needed once.
 
 ## Usage
 
@@ -66,6 +87,8 @@ uptrack info <name>                # release notes + why this asset
 uptrack log <name>                 # release history
 uptrack install <name> [--version <tag>]
 uptrack sync                       # install missing + upgrade outdated
+uptrack self-update                # update uptrack itself
+uptrack version                    # print version
 uptrack remove <name> [--purge]    # stop tracking, optionally delete files
 ```
 

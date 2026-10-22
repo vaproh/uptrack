@@ -59,7 +59,7 @@ func NewRoot() *cobra.Command {
 	root.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	root.PersistentFlags().BoolVarP(&assume, "yes", "y", false, "skip confirmation prompts")
 
-	root.AddCommand(newList(), newRemove(), newAdd(), newCheck(), newOutdated(), newInfo(), newLog(), newInstall(), newSync())
+	root.AddCommand(newList(), newRemove(), newAdd(), newCheck(), newOutdated(), newInfo(), newLog(), newInstall(), newSync(), newVersion(), newSelfUpdate())
 	return root
 }
 

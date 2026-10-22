@@ -53,6 +53,8 @@ single top dir, exactly one executable — else require `install.exe`.
 CLI only. Installs/upgrades confirm unless `-y`. Colors on TTY only,
 `NO_COLOR` and `--no-color` respected. Nonzero exit on any failure;
 partial failures in `check`/`sync` report per app and continue.
+`uptrack self-update` replaces the uptrack binary itself from the
+latest GitHub release, verified against `sha256sums.txt`.
 
 ## Known limits
 
