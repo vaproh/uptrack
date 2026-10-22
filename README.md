@@ -2,8 +2,8 @@
 
 [![ci](https://github.com/vaproh/uptrack/actions/workflows/ci.yml/badge.svg)](https://github.com/vaproh/uptrack/actions/workflows/ci.yml)
 [![release](https://img.shields.io/github/v/release/vaproh/uptrack)](https://github.com/vaproh/uptrack/releases)
-[![go](https://img.shields.io/github/go-mod/go-version/vaproh/uptrack)](https://go.dev)
-[![license](https://img.shields.io/github/license/vaproh/uptrack)](LICENSE)
+![go](https://img.shields.io/badge/go-1.27-00ADD8)
+![license](https://img.shields.io/badge/license-MIT-green)
 ![platform](https://img.shields.io/badge/platform-linux-lightgrey)
 
 Track and install standalone Linux apps from GitHub releases. No root,
