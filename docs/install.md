@@ -9,9 +9,12 @@ so a failure never leaves a broken install behind.
 2. **Select** the asset (see [selection](selection.md)).
 3. **Download** to a temp file, streaming. The byte count must match the
    size in the release metadata when published.
-4. **Verify** sha256 against the `digest` field GitHub returns on
-   assets. Missing digest: install proceeds but is labeled
-   **unverified**. Mismatch: abort, delete the temp file.
+4. **Verify** sha256. The asset's own `digest` field wins. Without
+   one, uptrack looks for `<asset>.sha256` then `SHA256SUMS`-style
+   files on the same release, in both `<hex>  <file>` and
+   `SHA256 (file) = <hex>` forms. A match verifies the same way;
+   nothing found means the install is labeled **unverified**.
+   A mismatch aborts and deletes the temp file.
 5. **Extract** into a fresh staging dir (archives and debs only).
 6. **Swap**: stage to `<dest>.new`, rename current `<dest>` aside,
    rename staged into place, remove the old tree. The previous install
@@ -58,6 +61,15 @@ the `ar` headers itself (~50 lines, no dependency), extracts
   fine and fails at launch; the post-install `ldd` warning names the
   missing library so you can install it with your system package
   manager.
+
+## Desktop integration
+
+`.deb` and AppImage installs copy `.desktop` launchers into
+`~/.local/share/applications` (honors `XDG_DATA_HOME`), rewrite `Exec`
+to the installed binary, and resolve packaged icons. AppImage
+extraction needs FUSE; when it fails the install still succeeds with
+a note. `uninstall` removes the launcher files. `--no-desktop` opts
+out per install. `update-desktop-database` runs when present.
 
 ## Archive safety
 

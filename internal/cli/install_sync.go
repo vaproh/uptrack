@@ -152,6 +152,7 @@ func installApp(c *ctx, app *config.App, tag string, noDesktop bool) error {
 		Tag:       rel.TagName,
 		DestDir:   dest,
 		BinDir:    c.paths.BinDir,
+		Assets:    rel.Assets,
 		Progress:  downloadBar(),
 		NoDesktop: noDesktop,
 	})
@@ -173,6 +174,8 @@ func installApp(c *ctx, app *config.App, tag string, noDesktop bool) error {
 	}
 	if !res.Verified {
 		fmt.Printf("%s\n", color.Yellow("unverified: upstream published no digest for this asset"))
+	} else if res.VerifiedBy != "" && res.VerifiedBy != "digest" {
+		fmt.Printf("%s %s\n", color.Dim("verified via"), res.VerifiedBy)
 	}
 	if res.DesktopNote != "" {
 		fmt.Printf("%s %s\n", color.Yellow("note:"), res.DesktopNote)

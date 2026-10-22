@@ -22,6 +22,7 @@ apps:
   - name: opencode          # required, local identifier
     repo: anomalyco/opencode # required, owner/repo
     channel: stable          # required: stable | prerelease | any
+    pin: v1.19.2             # optional: hold this version, sync skips it
     asset:                   # optional, overrides auto-selection
       match: "opencode-linux-x64*.tar.gz"  # glob, case-insensitive
       exclude: ["*musl*", "*baseline*"]    # globs, optional

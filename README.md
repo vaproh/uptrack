@@ -85,6 +85,10 @@ uptrack self-update                # update uptrack itself
 uptrack version                    # print version
 uptrack remove <name>               # stop tracking, keep files
 uptrack uninstall <name>            # delete files + stop tracking
+uptrack pin <name> [tag]            # hold a version, sync skips it
+uptrack unpin <name>                # follow the channel again
+uptrack doctor                      # verify installs are healthy
+uptrack completion [bash|zsh|fish]  # shell completions
 ```
 
 Installs and upgrades confirm unless `-y`. Colors follow the terminal;

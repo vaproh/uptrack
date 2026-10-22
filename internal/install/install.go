@@ -33,6 +33,9 @@ type Request struct {
 	Client  *http.Client
 	// Progress receives download progress; nil means silent.
 	Progress func(downloaded, total int64)
+	// Assets are siblings on the same release, used for checksum-file
+	// fallback when the asset itself has no digest.
+	Assets []gh.Asset
 	// NoDesktop skips launcher integration for deb/AppImage installs.
 	NoDesktop bool
 }
@@ -73,8 +76,15 @@ func Install(ctx context.Context, req Request) (Result, error) {
 	}
 
 	verified := false
-	if req.Sel.Asset.Digest != "" {
-		err = VerifyDigest(tmpName, req.Sel.Asset.Digest)
+	verifiedBy := ""
+	digest := req.Sel.Asset.Digest
+	if digest == "" {
+		digest, verifiedBy = resolveChecksum(ctx, client, req.Assets, req.Sel.Asset.Name)
+	} else {
+		verifiedBy = "digest"
+	}
+	if digest != "" {
+		err = VerifyDigest(tmpName, digest)
 		if err != nil {
 			return Result{}, err
 		}
@@ -90,7 +100,7 @@ func Install(ctx context.Context, req Request) (Result, error) {
 	// Desktop integration reads the staged tree, so it runs before
 	// the swap renames staging away. exeAbs is the final path.
 	exeAbs := filepath.Join(req.DestDir, exeRel)
-	res := Result{ExeRel: exeRel, Verified: verified}
+	res := Result{ExeRel: exeRel, Verified: verified, VerifiedBy: verifiedBy}
 	if !req.NoDesktop {
 		kind := effectiveKind(req)
 		if kind == asset.KindDeb || kind == asset.KindAppImage {
