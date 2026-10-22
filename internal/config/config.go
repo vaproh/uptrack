@@ -54,10 +54,12 @@ func (c *Config) Find(name string) (*App, error) {
 
 // AppState is per-app machine-local state.
 type AppState struct {
-	InstalledVersion string `json:"installedVersion,omitempty"`
-	InstalledAsset   string `json:"installedAsset,omitempty"`
-	Verified         bool   `json:"verified,omitempty"`
-	LatestVersion    string `json:"latestVersion,omitempty"`
+	InstalledVersion string   `json:"installedVersion,omitempty"`
+	InstalledAsset   string   `json:"installedAsset,omitempty"`
+	ExeRel           string   `json:"exeRel,omitempty"`
+	DesktopFiles     []string `json:"desktopFiles,omitempty"`
+	Verified         bool     `json:"verified,omitempty"`
+	LatestVersion    string   `json:"latestVersion,omitempty"`
 }
 
 // State is the whole state.json.

@@ -199,7 +199,7 @@ func desktopExec(dir, desktop string) (string, bool) {
 // warnMissingLibs prints a warning when an ELF binary needs shared
 // libraries the loader cannot find. Non-ELF files are ignored.
 func warnMissingLibs(exe string) {
-	libs := missingLibs(exe)
+	libs := MissingLibs(exe)
 	if len(libs) > 0 {
 		fmt.Printf("warning: missing shared libraries: %s\n", strings.Join(libs, ", "))
 		fmt.Println("install them with your system package manager")

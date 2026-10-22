@@ -8,7 +8,8 @@ import (
 
 // missingLibs runs ldd on ELF binaries and returns libraries
 // reported as "not found". Scripts and other files yield nothing.
-func missingLibs(exe string) []string {
+// Exported for the doctor command.
+func MissingLibs(exe string) []string {
 	f, err := os.Open(exe)
 	if err != nil {
 		return nil

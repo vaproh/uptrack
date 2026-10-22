@@ -157,6 +157,7 @@ func installApp(c *ctx, app *config.App, tag string) error {
 	s := c.state.Apps[app.Name]
 	s.InstalledVersion = rel.TagName
 	s.InstalledAsset = sel.Asset.Name
+	s.ExeRel = res.ExeRel
 	s.Verified = res.Verified
 	s.LatestVersion = rel.TagName
 	c.state.Apps[app.Name] = s
